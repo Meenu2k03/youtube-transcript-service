@@ -22,6 +22,7 @@ def get_transcript():
     video_url = request.args.get('video_url')
     lang = request.args.get('lang', 'en')
 
+    captions_error = None
     try:
         if PROXY_URL:
             ytt_api = YouTubeTranscriptApi(
@@ -32,8 +33,8 @@ def get_transcript():
         transcript = ytt_api.get_transcript(video_id, languages=[lang, 'en'])
         text = " ".join([t['text'] for t in transcript])
         return jsonify({"success": True, "source": "captions", "transcript": text})
-    except Exception:
-        pass
+    except Exception as e:
+        captions_error = str(e)
 
     try:
         temp_dir = tempfile.gettempdir()
@@ -55,7 +56,7 @@ def get_transcript():
 
         return jsonify({"success": True, "source": "whisper", "transcript": text})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        return jsonify({"success": False, "error": str(e), "captions_error": captions_error}), 400
 
 @app.route('/', methods=['GET'])
 def health():
