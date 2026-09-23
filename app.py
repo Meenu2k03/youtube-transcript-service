@@ -30,8 +30,8 @@ def get_transcript():
             )
         else:
             ytt_api = YouTubeTranscriptApi()
-        transcript = ytt_api.get_transcript(video_id, languages=[lang, 'en'])
-        text = " ".join([t['text'] for t in transcript])
+        fetched = ytt_api.fetch(video_id, languages=[lang, 'en'])
+        text = " ".join([snippet.text for snippet in fetched])
         return jsonify({"success": True, "source": "captions", "transcript": text})
     except Exception as e:
         captions_error = str(e)
