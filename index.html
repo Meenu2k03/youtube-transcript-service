@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YouTube Video Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161a22;
+    --panel-2: #1d222c;
+    --line: #2a3040;
+    --fg: #f2f3f5;
+    --fg-dim: #9aa2b1;
+    --accent: #ff5c5c;
+    --accent-dim: #7a2f2f;
+    --ok: #4ade80;
+  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f4f2; --panel: #ffffff; --panel-2: #eeeeec;
+      --line: #dcdcd8; --fg: #14161a; --fg-dim: #6b7280;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f4f2; --panel: #ffffff; --panel-2: #eeeeec;
+    --line: #dcdcd8; --fg: #14161a; --fg-dim: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: 'Inter', -apple-system, sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  header {
+    padding: 28px 24px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(22px, 4vw, 30px);
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  header p { margin: 0; color: var(--fg-dim); font-size: 14px; }
+  .lang-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .lang-chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; padding: 5px 10px; border-radius: 20px;
+    border: 1px solid var(--line); color: var(--fg-dim);
+  }
+  main {
+    display: grid; grid-template-columns: 360px 1fr; gap: 0;
+    min-height: calc(100vh - 130px);
+  }
+  @media (max-width: 780px) { main { grid-template-columns: 1fr; } }
+
+  .controls {
+    padding: 24px; border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  @media (max-width: 780px) { .controls { border-right: none; border-bottom: 1px solid var(--line); } }
+
+  label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-dim); display: block; margin-bottom: 6px; }
+  input, select, textarea {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--fg); border-radius: 8px; padding: 10px 12px; font-size: 14px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+  button {
+    background: var(--accent); color: #1a0d0d; border: none; border-radius: 8px;
+    padding: 12px 16px; font-weight: 600; font-size: 14px; cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  button:disabled { background: var(--accent-dim); color: var(--fg-dim); cursor: not-allowed; }
+  button:not(:disabled):hover { filter: brightness(1.08); }
+
+  .hint { font-size: 12px; color: var(--fg-dim); line-height: 1.5; }
+
+  .output-wrap { padding: 24px; overflow-y: auto; }
+  .transcript-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px 22px; min-height: 200px;
+  }
+  .placeholder { color: var(--fg-dim); font-size: 14px; }
+  .answer {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14.5px; line-height: 1.75; white-space: pre-wrap;
+    border-left: 3px solid var(--accent); padding-left: 16px;
+  }
+  .status-line {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--fg-dim);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-dim); }
+  .dot.live { background: var(--ok); animation: pulse 1.4s infinite; }
+  .dot.err { background: var(--accent); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .error-box { color: var(--accent); font-size: 13px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>YouTube Video Assistant</h1>
+  <p>Paste a video link, ask about it, get an answer grounded in the transcript.</p>
+  <div class="lang-row">
+    <span class="lang-chip">EN</span><span class="lang-chip">हिन्दी</span><span class="lang-chip">മലയാളം</span>
+  </div>
+</header>
+
+<main>
+  <section class="controls">
+    <div>
+      <label for="url">YouTube URL</label>
+      <input id="url" type="text" placeholder="https://youtu.be/..." value="https://youtu.be/aircAruvnKk">
+    </div>
+    <div>
+      <label for="question">Your question</label>
+      <textarea id="question" placeholder="Summarize this video&#10;or ask anything about it">Summarize this video</textarea>
+    </div>
+    <div>
+      <label for="lang">Response language</label>
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी (Hindi)</option>
+        <option value="ml">മലയാളം (Malayalam)</option>
+      </select>
+    </div>
+    <button id="submit">Ask the assistant</button>
+    <p class="hint">Detects captions automatically, or transcribes audio when no captions exist. First request on a cold service may take a little longer.</p>
+  </section>
+
+  <section class="output-wrap">
+    <div class="status-line"><span class="dot" id="statusDot"></span><span id="statusText">Ready</span></div>
+    <div class="transcript-card">
+      <div id="answer" class="placeholder">Your answer will appear here.</div>
+      <div id="errorBox" class="error-box" style="display:none;"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const WEBHOOK_URL = "https://meenutty.app.n8n.cloud/webhook/youtube-assistant";
+
+function extractVideoId(url) {
+  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+const submitBtn = document.getElementById('submit');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const answerEl = document.getElementById('answer');
+const errorBox = document.getElementById('errorBox');
+
+submitBtn.addEventListener('click', async () => {
+  const url = document.getElementById('url').value.trim();
+  const question = document.getElementById('question').value.trim();
+  const lang = document.getElementById('lang').value;
+  const videoId = extractVideoId(url);
+
+  errorBox.style.display = 'none';
+  if (!videoId) {
+    errorBox.textContent = 'Could not find a video ID in that URL.';
+    errorBox.style.display = 'block';
+    return;
+  }
+  if (!question) {
+    errorBox.textContent = 'Type a question first.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  statusDot.className = 'dot live';
+  statusText.textContent = 'Fetching transcript and generating answer…';
+  answerEl.className = 'placeholder';
+  answerEl.textContent = 'Working on it…';
+
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_id: videoId, video_url: url, question, lang })
+    });
+
+    if (!res.ok) throw new Error('Server responded with ' + res.status);
+    const data = await res.json();
+    const text = typeof data === 'string' ? data : (data.text || data.output || JSON.stringify(data));
+
+    answerEl.className = 'answer';
+    answerEl.textContent = text;
+    statusDot.className = 'dot';
+    statusText.textContent = 'Done';
+  } catch (err) {
+    statusDot.className = 'dot err';
+    statusText.textContent = 'Failed';
+    answerEl.className = 'placeholder';
+    answerEl.textContent = 'Your answer will appear here.';
+    errorBox.textContent = 'Something went wrong: ' + err.message;
+    errorBox.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
