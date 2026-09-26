@@ -11,6 +11,10 @@ Paste a YouTube link, ask a question (or ask for a summary), and get an answer g
 3. **Orchestration** (n8n): routes the transcript + user question to an LLM
 4. **Answer generation** (Google Gemini): produces a grounded, transcript-based response
 5. **Frontend** (HTML/Tailwind/JS): simple interface to submit a video + question
+## n8n Workflow
+The orchestration logic — webhook → transcript service → Gemini → JSON response — is available as an importable n8n workflow: [`n8n-workflow.json`](./n8n-workflow.json)
+
+> Note: the transcript service URL in this export points to a local ngrok tunnel used during development. Replace it with your own hosted endpoint when importing.
 
 ## Tech stack
 Flask · yt-dlp · faster-whisper · n8n · Google Gemini API · HTML/Tailwind/JS
